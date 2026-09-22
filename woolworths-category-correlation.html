@@ -1,0 +1,515 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Woolworths — Category Spend Correlation Matrix</title>
+<style>
+  :root{
+    --wx-green-dark:   #004C27;
+    --wx-green:        #129C4F;
+    --wx-green-light:  #AAD84A;
+    --wx-green-tint:   #EAF6EE;
+    --wx-accent-pos:   #0E7C40;   /* strong positive cell */
+    --wx-accent-neg:   #A33B2E;   /* strong negative cell — diverging pole */
+    --ink:             #14201A;
+    --ink-soft:        #4B5A52;
+    --surface:         #FFFFFF;
+    --surface-alt:     #F4F7F5;
+    --border:          #DCE5DF;
+    --focus:           #E8A33D;
+    --radius:          10px;
+    --mono: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; }
+  body{
+    font-family:var(--sans);
+    color:var(--ink);
+    background:var(--surface-alt);
+    line-height:1.5;
+    -webkit-font-smoothing:antialiased;
+  }
+  ::selection{ background:var(--wx-green-light); color:var(--wx-green-dark); }
+
+  a{ color:var(--wx-green-dark); }
+
+  /* ---------- Header ---------- */
+  header.masthead{
+    background:var(--wx-green-dark);
+    color:#fff;
+    padding:18px 24px;
+    display:flex;
+    align-items:center;
+    gap:18px;
+    flex-wrap:wrap;
+    border-bottom:4px solid var(--wx-green);
+  }
+  .logo{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    flex-shrink:0;
+  }
+  .logo svg{ display:block; }
+  .logo-word{
+    font-weight:800;
+    font-size:20px;
+    letter-spacing:-0.02em;
+    color:#fff;
+  }
+  .logo-word small{
+    display:block;
+    font-weight:500;
+    font-size:10.5px;
+    letter-spacing:0.06em;
+    color:var(--wx-green-light);
+    margin-top:1px;
+  }
+  .masthead-title{
+    flex:1 1 320px;
+    min-width:220px;
+  }
+  .masthead-title h1{
+    margin:0;
+    font-size:19px;
+    font-weight:700;
+    letter-spacing:-0.01em;
+  }
+  .masthead-title p{
+    margin:2px 0 0;
+    font-size:12.5px;
+    color:#CFE9D8;
+  }
+  .masthead-meta{
+    font-size:12px;
+    color:#CFE9D8;
+    text-align:right;
+    line-height:1.6;
+  }
+  .masthead-meta strong{ color:#fff; }
+
+  /* ---------- Layout ---------- */
+  main{
+    max-width:1180px;
+    margin:0 auto;
+    padding:28px 24px 60px;
+  }
+
+  .caption-card{
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-left:4px solid var(--wx-green);
+    border-radius:var(--radius);
+    padding:18px 22px;
+    margin-bottom:26px;
+  }
+  .caption-card h2{
+    margin:0 0 6px;
+    font-size:14px;
+    text-transform:none;
+    color:var(--wx-green-dark);
+    font-weight:700;
+  }
+  .caption-card p{
+    margin:0;
+    font-size:14px;
+    color:var(--ink-soft);
+    max-width:78ch;
+  }
+  .caption-card p + p{ margin-top:8px; }
+
+  .stat-row{
+    display:flex;
+    gap:22px;
+    flex-wrap:wrap;
+    margin-top:14px;
+    padding-top:14px;
+    border-top:1px solid var(--border);
+  }
+  .stat{
+    font-size:12.5px;
+    color:var(--ink-soft);
+  }
+  .stat strong{
+    display:block;
+    font-size:17px;
+    color:var(--wx-green-dark);
+    font-variant-numeric:tabular-nums;
+  }
+
+  /* ---------- Heatmap card ---------- */
+  .matrix-card{
+    background:var(--surface);
+    border:1px solid var(--border);
+    border-radius:var(--radius);
+    padding:20px 20px 24px;
+  }
+  .matrix-card h2{
+    font-size:15px;
+    margin:0 0 4px;
+    color:var(--ink);
+  }
+  .matrix-card .sub{
+    font-size:12.5px;
+    color:var(--ink-soft);
+    margin:0 0 18px;
+  }
+
+  .matrix-scroll{
+    overflow-x:auto;
+    padding-bottom:6px;
+  }
+
+  table.heatmap{
+    border-collapse:separate;
+    border-spacing:3px;
+    font-variant-numeric:tabular-nums;
+  }
+  table.heatmap caption{
+    text-align:left;
+    font-size:12px;
+    color:var(--ink-soft);
+    padding-bottom:10px;
+  }
+  .corner-cell{ width:132px; }
+  .col-head{
+    writing-mode:vertical-rl;
+    transform:rotate(180deg);
+    font-size:12px;
+    font-weight:600;
+    color:var(--ink);
+    padding:8px 4px;
+    height:120px;
+    vertical-align:bottom;
+    text-align:left;
+    white-space:nowrap;
+  }
+  .row-head{
+    font-size:12.5px;
+    font-weight:600;
+    color:var(--ink);
+    text-align:right;
+    padding-right:10px;
+    white-space:nowrap;
+    width:132px;
+  }
+  td.cell-td{ padding:0; }
+  button.cell{
+    all:unset;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    width:52px;
+    height:44px;
+    font-size:12px;
+    font-weight:600;
+    border-radius:6px;
+    cursor:pointer;
+    box-sizing:border-box;
+  }
+  button.cell:focus-visible{
+    outline:3px solid var(--focus);
+    outline-offset:1px;
+    z-index:2;
+    position:relative;
+  }
+  button.cell:hover{
+    outline:2px solid var(--wx-green-dark);
+    outline-offset:-2px;
+  }
+  button.cell.diag{
+    border:1.5px dashed rgba(0,0,0,0.25);
+  }
+
+  /* tooltip */
+  .tooltip{
+    position:fixed;
+    pointer-events:none;
+    background:var(--wx-green-dark);
+    color:#fff;
+    font-size:12.5px;
+    padding:8px 11px;
+    border-radius:7px;
+    max-width:260px;
+    box-shadow:0 6px 18px rgba(0,0,0,0.22);
+    z-index:50;
+    opacity:0;
+    transform:translateY(4px);
+    transition:opacity .12s ease, transform .12s ease;
+  }
+  .tooltip.show{ opacity:1; transform:translateY(0); }
+  .tooltip b{ color:var(--wx-green-light); }
+
+  /* ---------- Legend ---------- */
+  .legend{
+    display:flex;
+    align-items:center;
+    gap:14px;
+    margin-top:22px;
+    flex-wrap:wrap;
+  }
+  .legend-bar{
+    height:14px;
+    width:260px;
+    border-radius:7px;
+    background:linear-gradient(90deg,
+      var(--wx-accent-neg) 0%,
+      #F4EDE8 50%,
+      var(--wx-green) 100%);
+    border:1px solid var(--border);
+  }
+  .legend-labels{
+    display:flex;
+    justify-content:space-between;
+    width:260px;
+    font-size:11.5px;
+    color:var(--ink-soft);
+    margin-top:4px;
+  }
+  .legend-text{
+    font-size:12.5px;
+    color:var(--ink-soft);
+  }
+
+  footer{
+    max-width:1180px;
+    margin:0 auto;
+    padding:0 24px 40px;
+    font-size:12px;
+    color:var(--ink-soft);
+  }
+  footer h3{
+    font-size:12.5px;
+    color:var(--wx-green-dark);
+    margin:0 0 6px;
+  }
+  footer ul{ margin:0; padding-left:18px; }
+  footer li{ margin-bottom:4px; }
+
+  @media (max-width: 640px){
+    .masthead-meta{ display:none; }
+    .corner-cell{ width:88px; }
+    .row-head{ width:88px; font-size:11.5px; }
+    button.cell{ width:42px; height:38px; font-size:11px; }
+    .col-head{ height:96px; font-size:11px; }
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    .tooltip{ transition:none; }
+  }
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <div class="logo" aria-hidden="false">
+    <svg width="34" height="34" viewBox="0 0 34 34" role="img" aria-label="Woolworths leaf mark">
+      <circle cx="17" cy="17" r="17" fill="#129C4F"/>
+      <path d="M17 6c4 3 6.5 7 6.5 11.2 0 4-2.6 7.3-6.5 8.8-3.9-1.5-6.5-4.8-6.5-8.8C10.5 13 13 9 17 6z" fill="#AAD84A"/>
+      <path d="M17 9.4v16.6" stroke="#004C27" stroke-width="1.3" stroke-linecap="round"/>
+    </svg>
+    <span class="logo-word">woolworths<small>DARK STORE ANALYTICS</small></span>
+  </div>
+  <div class="masthead-title">
+    <h1>Category Spend Correlation Matrix</h1>
+    <p>Which categories tend to be bought together, based on customer-level spend</p>
+  </div>
+  <div class="masthead-meta" id="headerMeta"></div>
+</header>
+
+<main>
+
+  <section class="caption-card">
+    <h2>How to read this</h2>
+    <p>Each customer's total spend was added up for every product category. The matrix compares every pair of categories across all customers and asks: when a customer spends more in one category, do they also tend to spend more in the other? A score near <strong>+1.00</strong> means the two categories rise and fall together — a strong sign shoppers buy them on the same trip. A score near <strong>0.00</strong> means the two spend patterns are unrelated. A score near <strong>&minus;1.00</strong> means one going up tends to come with the other going down.</p>
+    <p>Categories are ordered along both axes in the store's business sequence (Milk → Bread → Eggs → Pasta → Pasta Sauce → Nachos → Salsa → Diapers → Wet wipes → Chocolates), not alphabetically, so neighbouring rows/columns reflect how the range is actually organised.</p>
+    <div class="stat-row" id="statRow"></div>
+  </section>
+
+  <section class="matrix-card">
+    <h2>Category-to-category correlation</h2>
+    <p class="sub">Pearson correlation of per-customer category spend · diagonal is always 1.00 (a category perfectly correlates with itself) · hover or focus a cell for detail</p>
+    <div class="matrix-scroll">
+      <table class="heatmap" id="heatmapTable">
+        <caption>Interactive heatmap. Each cell shows the Pearson correlation coefficient between the row category and the column category's total spend per customer. Use Tab to move between cells; each cell announces the two categories and the correlation value.</caption>
+        <thead>
+          <tr id="headRow"><th class="corner-cell" scope="col"></th></tr>
+        </thead>
+        <tbody id="bodyRows"></tbody>
+      </table>
+    </div>
+
+    <div class="legend">
+      <div>
+        <div class="legend-bar" role="img" aria-label="Colour scale from red at minus one, through pale neutral at zero, to green at plus one"></div>
+        <div class="legend-labels"><span>&minus;1.00</span><span>0.00</span><span>+1.00</span></div>
+      </div>
+      <div class="legend-text">Bought apart&nbsp;&nbsp;·&nbsp;&nbsp;unrelated&nbsp;&nbsp;·&nbsp;&nbsp;bought together</div>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <h3>Method &amp; assumptions</h3>
+  <ul>
+    <li>Spend per line = quantity × unit price (matches the dataset's <code>total_price</code> column, verified to reconcile on every row).</li>
+    <li>Per-customer, per-category spend was summed across all their orders, giving a 100 customer × 10 category matrix, then Pearson correlation was computed column-to-column on that matrix.</li>
+    <li>Customers with zero spend in a category are included as 0, not excluded — a customer who never buys diapers is genuine signal, not a missing value.</li>
+    <li>Category order follows the letter prefixes already present in the source data (A.Milk … J.Chocolates), read as the intended business/planogram sequence rather than re-sorted alphabetically by name.</li>
+  </ul>
+</footer>
+
+<div class="tooltip" id="tooltip" role="status" aria-live="polite"></div>
+
+<script>
+const DATA = {"categories":["A.Milk","B.Bread","C.Eggs","D.Pasta","E.Pasta Sauce","F.Nachos","G.Salsa","H.Diapers","I.Wet wipes","J.Chocolates"],"categoryDisplay":{"A.Milk":"Milk","B.Bread":"Bread","C.Eggs":"Eggs","D.Pasta":"Pasta","E.Pasta Sauce":"Pasta Sauce","F.Nachos":"Nachos","G.Salsa":"Salsa","H.Diapers":"Diapers","I.Wet wipes":"Wet wipes","J.Chocolates":"Chocolates"},"correlation":[[1.0,0.7574,0.7891,0.0192,-0.0244,-0.0849,0.0272,0.0977,-0.0269,-0.0709],[0.7574,1.0,0.6087,0.1459,0.1001,-0.1031,-0.1723,0.0241,-0.071,0.1025],[0.7891,0.6087,1.0,-0.0208,0.0254,-0.2085,0.0434,0.067,-0.0682,-0.1193],[0.0192,0.1459,-0.0208,1.0,0.9553,0.1952,0.2268,-0.1508,-0.1542,-0.0899],[-0.0244,0.1001,0.0254,0.9553,1.0,0.108,0.1547,-0.1805,-0.1975,-0.1368],[-0.0849,-0.1031,-0.2085,0.1952,0.108,1.0,0.4782,0.1602,0.2172,0.1724],[0.0272,-0.1723,0.0434,0.2268,0.1547,0.4782,1.0,-0.0621,-0.1202,-0.1915],[0.0977,0.0241,0.067,-0.1508,-0.1805,0.1602,-0.0621,1.0,0.7022,0.5801],[-0.0269,-0.071,-0.0682,-0.1542,-0.1975,0.2172,-0.1202,0.7022,1.0,0.7811],[-0.0709,0.1025,-0.1193,-0.0899,-0.1368,0.1724,-0.1915,0.5801,0.7811,1.0]],"categoryStats":{"A.Milk":{"display":"Milk","totalSpend":13035.0,"totalQty":2950,"customerReach":100,"customerReachPct":100.0,"products":[{"name":"A2 Full Cream Milk 2L","unitPrice":5.6},{"name":"Dairy Farmers Lite Milk 2L","unitPrice":3.9},{"name":"Pauls Full Cream Milk 2L","unitPrice":3.9}]},"B.Bread":{"display":"Bread","totalSpend":13655.7,"totalQty":3083,"customerReach":100,"customerReachPct":100.0,"products":[{"name":"Abbott's Village Bakery Farmhouse Wholemeal 800g","unitPrice":4.7},{"name":"Helga's Wholemeal 750g","unitPrice":4.7},{"name":"Wonder White Sandwich 700g","unitPrice":3.9}]},"C.Eggs":{"display":"Eggs","totalSpend":11890.0,"totalQty":2288,"customerReach":99,"customerReachPct":99.0,"products":[{"name":"Pace Farm Free Range Eggs 12 pack 600g","unitPrice":5},{"name":"Woolworths Free Range Eggs 12 pack 700g","unitPrice":5.4}]},"D.Pasta":{"display":"Pasta","totalSpend":7672.5,"totalQty":1830,"customerReach":100,"customerReachPct":100.0,"products":[{"name":"Barilla Spaghetti 500g","unitPrice":3},{"name":"Latina Fresh Beef Ravioli 625g","unitPrice":8.5},{"name":"San Remo Penne 500g","unitPrice":2.5}]},"E.Pasta Sauce":{"display":"Pasta Sauce","totalSpend":6451.1,"totalQty":1588,"customerReach":100,"customerReachPct":100.0,"products":[{"name":"Barilla Basilico Pasta Sauce 400g","unitPrice":4.5},{"name":"Dolmio Pasta Sauce Classic Tomato 500g","unitPrice":3.7},{"name":"Leggo's Bolognese Pasta Sauce 500g","unitPrice":4}]},"F.Nachos":{"display":"Nachos","totalSpend":5750.4,"totalQty":1198,"customerReach":96,"customerReachPct":96.0,"products":[{"name":"CC's Corn Chips Tasty Cheese 175g","unitPrice":4.8},{"name":"Doritos Corn Chips Cheese Supreme 170g","unitPrice":4.8}]},"G.Salsa":{"display":"Salsa","totalSpend":4213.0,"totalQty":992,"customerReach":96,"customerReachPct":96.0,"products":[{"name":"Old El Paso Thick N Chunky Salsa Mild 300g","unitPrice":4.5},{"name":"Tostitos Salsa Medium 300g","unitPrice":4}]},"H.Diapers":{"display":"Diapers","totalSpend":23625.0,"totalQty":1125,"customerReach":98,"customerReachPct":98.0,"products":[{"name":"BabyLove Cosifit Nappies Size 3 54 pack","unitPrice":21},{"name":"Huggies Ultra Dry Nappy Pants Size 4 29 pack","unitPrice":21}]},"I.Wet wipes":{"display":"Wet wipes","totalSpend":19217.5,"totalQty":4045,"customerReach":100,"customerReachPct":100.0,"products":[{"name":"Curash Baby Wipes 80 pack","unitPrice":4.5},{"name":"Huggies Baby Wipes Fragrance Free 80 pack","unitPrice":5}]},"J.Chocolates":{"display":"Chocolates","totalSpend":11614.1,"totalQty":1621,"customerReach":100,"customerReachPct":100.0,"products":[{"name":"Cadbury Dairy Milk Chocolate Block 180g","unitPrice":5.5},{"name":"Lindt Excellence 70% Cocoa Dark Chocolate 100g","unitPrice":4.8},{"name":"Maltesers Box 400g","unitPrice":12}]}},"meta":{"numCustomers":100,"numOrders":1995,"numLineItems":8902,"numProducts":25,"totalSpend":117124.3}}
+;
+
+const cats = DATA.categories;
+const disp = DATA.categoryDisplay;
+const corr = DATA.correlation;
+const meta = DATA.meta;
+
+// ---- header meta ----
+document.getElementById('headerMeta').innerHTML =
+  `<strong>${meta.numCustomers}</strong> customers analysed<br>${meta.numLineItems.toLocaleString()} order lines · ${meta.numOrders.toLocaleString()} orders`;
+
+document.getElementById('statRow').innerHTML = `
+  <div class="stat"><strong>${meta.numCustomers}</strong>customers</div>
+  <div class="stat"><strong>${cats.length}</strong>categories</div>
+  <div class="stat"><strong>${meta.numProducts}</strong>products</div>
+  <div class="stat"><strong>$${meta.totalSpend.toLocaleString(undefined,{maximumFractionDigits:0})}</strong>total spend</div>
+`;
+
+// ---- colour scale ----
+function cellColor(r){
+  // r in [-1,1]. Negative -> accent-neg, 0 -> pale neutral, positive -> green
+  const clamp = Math.max(-1, Math.min(1, r));
+  function mix(c1, c2, t){
+    return [0,1,2].map(i => Math.round(c1[i] + (c2[i]-c1[i])*t));
+  }
+  const neg = [163,59,46];      // #A33B2E
+  const neu = [244,237,232];    // #F4EDE8
+  const pos = [18,156,79];      // #129C4F
+
+  let rgb;
+  if (clamp <= 0){
+    rgb = mix(neu, neg, -clamp);
+  } else {
+    rgb = mix(neu, pos, clamp);
+  }
+  return rgb;
+}
+function luminance([r,g,b]){
+  const a = [r,g,b].map(v=>{
+    v/=255;
+    return v<=0.03928 ? v/12.92 : Math.pow((v+0.055)/1.055,2.4);
+  });
+  return 0.2126*a[0]+0.7152*a[1]+0.0722*a[2];
+}
+function textColorFor(rgb){
+  // WCAG-ish: pick white or dark ink for best contrast
+  const lum = luminance(rgb);
+  return lum > 0.42 ? '#14201A' : '#FFFFFF';
+}
+function strength(r){
+  const a = Math.abs(r);
+  if (a >= 0.7) return 'very strong';
+  if (a >= 0.4) return 'strong';
+  if (a >= 0.2) return 'moderate';
+  return 'weak';
+}
+function direction(r){
+  if (r > 0.02) return 'positive';
+  if (r < -0.02) return 'negative';
+  return 'no';
+}
+
+// ---- build header row ----
+const headRow = document.getElementById('headRow');
+cats.forEach(c=>{
+  const th = document.createElement('th');
+  th.scope = 'col';
+  th.className = 'col-head';
+  th.textContent = disp[c];
+  headRow.appendChild(th);
+});
+
+// ---- build body ----
+const bodyRows = document.getElementById('bodyRows');
+cats.forEach((rowCat, i)=>{
+  const tr = document.createElement('tr');
+  const th = document.createElement('th');
+  th.scope = 'row';
+  th.className = 'row-head';
+  th.textContent = disp[rowCat];
+  tr.appendChild(th);
+
+  cats.forEach((colCat, j)=>{
+    const td = document.createElement('td');
+    td.className = 'cell-td';
+    const btn = document.createElement('button');
+    btn.className = 'cell' + (i===j ? ' diag' : '');
+    const r = corr[i][j];
+    const rgb = cellColor(r);
+    btn.style.background = `rgb(${rgb.join(',')})`;
+    btn.style.color = textColorFor(rgb);
+    btn.textContent = r.toFixed(2);
+    const label = i===j
+      ? `${disp[rowCat]} against itself: correlation 1.00`
+      : `${disp[rowCat]} and ${disp[colCat]}: correlation ${r.toFixed(2)}, ${strength(r)} ${direction(r)} relationship`;
+    btn.setAttribute('aria-label', label);
+    btn.dataset.tip = label;
+    td.appendChild(btn);
+    tr.appendChild(td);
+  });
+  bodyRows.appendChild(tr);
+});
+
+// ---- tooltip ----
+const tip = document.getElementById('tooltip');
+let tipTarget = null;
+
+function showTip(el, x, y){
+  tip.textContent = el.dataset.tip;
+  tip.classList.add('show');
+  positionTip(x, y);
+}
+function positionTip(x, y){
+  const pad = 14;
+  let left = x + pad;
+  let top = y + pad;
+  const rect = tip.getBoundingClientRect();
+  if (left + rect.width > window.innerWidth - 10) left = x - rect.width - pad;
+  if (top + rect.height > window.innerHeight - 10) top = y - rect.height - pad;
+  tip.style.left = left + 'px';
+  tip.style.top = top + 'px';
+}
+function hideTip(){
+  tip.classList.remove('show');
+}
+
+document.querySelectorAll('button.cell').forEach(btn=>{
+  btn.addEventListener('mouseenter', e=>{
+    tipTarget = btn;
+    showTip(btn, e.clientX, e.clientY);
+  });
+  btn.addEventListener('mousemove', e=>{
+    if (tipTarget === btn) positionTip(e.clientX, e.clientY);
+  });
+  btn.addEventListener('mouseleave', hideTip);
+  btn.addEventListener('focus', ()=>{
+    const rect = btn.getBoundingClientRect();
+    tipTarget = btn;
+    showTip(btn, rect.left + rect.width/2, rect.bottom);
+  });
+  btn.addEventListener('blur', hideTip);
+});
+</script>
+
+</body>
+</html>
