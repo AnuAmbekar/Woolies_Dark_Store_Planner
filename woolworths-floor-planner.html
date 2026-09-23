@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Woolworths — Dark Store Floor Planner</title>
+<style>
+  :root{
+    --wx-green-dark:   #004C27;
+    --wx-green:        #129C4F;
+    --wx-green-light:  #AAD84A;
+    --wx-green-tint:   #EAF6EE;
+    --ink:             #14201A;
+    --ink-soft:        #4B5A52;
+    --surface:         #FFFFFF;
+    --surface-alt:     #F4F7F5;
+    --lane-bg:         #EDF2EE;
+    --border:          #DCE5DF;
+    --accent:          #E8A33D;
+    --accent-dark:     #B97A1E;
+    --radius:          10px;
+    --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; padding:0; height:100%; }
+  body{
+    font-family:var(--sans);
+    color:var(--ink);
+    background:var(--surface-alt);
+    line-height:1.45;
+    -webkit-font-smoothing:antialiased;
+    min-height:100vh;
+    display:flex;
+    flex-direction:column;
+  }
+  ::selection{ background:var(--wx-green-light); color:var(--wx-green-dark); }
+  button{ font-family:inherit; }
+
+  /* ---------- Header ---------- */
+  header.masthead{
+    background:var(--wx-green-dark);
+    color:#fff;
+    padding:14px 20px;
+    display:flex;
+    align-items:center;
+    gap:20px;
+    flex-wrap:wrap;
+    border-bottom:4px solid var(--wx-green);
+    flex-shrink:0;
+  }
+  .logo{ display:flex; align-items:center; gap:10px; flex-shrink:0; }
+  .logo svg{ display:block; }
+  .logo-word{ font-weight:800; font-size:19px; letter-spacing:-0.02em; color:#fff; }
+  .logo-word small{
+    display:block; font-weight:500; font-size:10px; letter-spacing:0.06em;
+    color:var(--wx-green-light); margin-top:1px;
+  }
+  .masthead-title{ flex:0 0 auto; }
+  .masthead-title h1{ margin:0; font-size:17px; font-weight:700; letter-spacing:-0.01em; }
+  .masthead-title p{ margin:2px 0 0; font-size:12px; color:#CFE9D8; }
+
+  .search-wrap{
+    flex:1 1 240px;
+    max-width:340px;
+    position:relative;
+  }
+  .search-wrap label{
+    display:block;
+    font-size:11px;
+    color:var(--wx-green-light);
+    margin-bottom:4px;
+    font-weight:600;
+  }
+  #productSearch{
+    width:100%;
+    padding:9px 12px;
+    border-radius:8px;
+    border:1.5px solid transparent;
+    font-size:13.5px;
+    background:#0E3D22;
+    color:#fff;
+  }
+  #productSearch::placeholder{ color:#8FBBA0; }
+  #productSearch:focus-visible{
+    outline:3px solid var(--accent);
+    outline-offset:1px;
+  }
+  #searchResult{
+    margin-top:6px;
+    font-size:12px;
+    min-height:16px;
+    color:var(--wx-green-light);
+  }
+  #searchResult .miss{ color:#F2C6BE; }
+
+  .score-box{
+    flex-shrink:0;
+    background:#0E3D22;
+    border:1px solid rgba(255,255,255,0.12);
+    border-radius:10px;
+    padding:8px 18px;
+    text-align:center;
+    min-width:150px;
+  }
+  .score-box .num{
+    font-size:30px;
+    font-weight:800;
+    line-height:1;
+    font-variant-numeric:tabular-nums;
+    transition:color .2s ease;
+  }
+  .score-box .lbl{
+    font-size:10.5px;
+    letter-spacing:0.03em;
+    color:#CFE9D8;
+    margin-top:3px;
+  }
+
+  /* ---------- Instructions bar ---------- */
+  .instructions{
+    background:var(--wx-green-tint);
+    border-bottom:1px solid var(--border);
+    padding:9px 20px;
+    font-size:12.5px;
+    color:var(--ink-soft);
+    flex-shrink:0;
+  }
+  .instructions strong{ color:var(--wx-green-dark); }
+
+  /* ---------- Floor area ---------- */
+  main{
+    flex:1 1 auto;
+    overflow-x:auto;
+    overflow-y:hidden;
+    padding:20px;
+    display:flex;
+    align-items:flex-start;
+  }
+  #floor{
+    display:flex;
+    gap:16px;
+    align-items:flex-start;
+    min-height:100%;
+  }
+
+  .aisle{
+    background:var(--lane-bg);
+    border:1.5px solid var(--border);
+    border-radius:12px;
+    width:230px;
+    flex-shrink:0;
+    padding:12px;
+    display:flex;
+    flex-direction:column;
+    gap:10px;
+    transition:box-shadow .15s ease, border-color .15s ease;
+  }
+  .aisle.dragover{
+    border-color:var(--wx-green);
+    box-shadow:0 0 0 3px rgba(18,156,79,0.25);
+  }
+  .aisle-head{
+    display:flex;
+    align-items:baseline;
+    justify-content:space-between;
+    gap:8px;
+  }
+  .aisle-head h2{
+    font-size:13px;
+    margin:0;
+    color:var(--wx-green-dark);
+    font-weight:700;
+  }
+  .aisle-head .count{
+    font-size:11px;
+    color:var(--ink-soft);
+  }
+
+  .category-card{
+    background:var(--surface);
+    border:1.5px solid var(--border);
+    border-radius:9px;
+    padding:9px 10px 10px;
+    cursor:grab;
+    transition:box-shadow .15s ease, transform .1s ease, border-color .15s ease;
+  }
+  .category-card:active{ cursor:grabbing; }
+  .category-card.dragging{ opacity:0.4; }
+  .category-card:focus-visible{
+    outline:3px solid var(--accent);
+    outline-offset:2px;
+  }
+  .category-card .cat-head{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:6px;
+    margin-bottom:7px;
+  }
+  .category-card h3{
+    font-size:13px;
+    margin:0;
+    color:var(--ink);
+    display:flex;
+    align-items:center;
+    gap:6px;
+  }
+  .drag-handle{
+    color:var(--ink-soft);
+    font-size:12px;
+    letter-spacing:1px;
+    user-select:none;
+  }
+  .move-select{
+    font-size:11px;
+    border:1px solid var(--border);
+    border-radius:6px;
+    padding:2px 4px;
+    background:var(--surface-alt);
+    color:var(--ink-soft);
+    max-width:78px;
+  }
+  .move-select:focus-visible{
+    outline:2px solid var(--accent);
+    outline-offset:1px;
+  }
+
+  .product-list{
+    list-style:none;
+    margin:0;
+    padding:0;
+    display:flex;
+    flex-direction:column;
+    gap:4px;
+  }
+  .product-tile{
+    font-size:11.5px;
+    color:var(--ink-soft);
+    background:var(--surface-alt);
+    border-radius:5px;
+    padding:5px 7px;
+    display:flex;
+    justify-content:space-between;
+    gap:6px;
+    border:1px solid transparent;
+    scroll-margin-top:100px;
+  }
+  .product-tile .price{
+    font-variant-numeric:tabular-nums;
+    color:var(--wx-green-dark);
+    font-weight:600;
+    flex-shrink:0;
+  }
+  .product-tile.hit{
+    border-color:var(--accent);
+    background:#FBEFDA;
+    box-shadow:0 0 0 3px rgba(232,163,61,0.28);
+  }
+  .category-card.hit-parent{
+    border-color:var(--accent);
+  }
+
+  .cat-stat{
+    font-size:10.5px;
+    color:var(--ink-soft);
+    margin-top:6px;
+  }
+
+  .new-lane{
+    width:150px;
+    flex-shrink:0;
+    border:2px dashed #B9C7BE;
+    border-radius:12px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    text-align:center;
+    color:var(--ink-soft);
+    font-size:12px;
+    padding:20px 10px;
+    min-height:120px;
+    transition:border-color .15s ease, background .15s ease, color .15s ease;
+  }
+  .new-lane.dragover{
+    border-color:var(--wx-green);
+    background:var(--wx-green-tint);
+    color:var(--wx-green-dark);
+  }
+
+  footer{
+    padding:12px 20px 20px;
+    font-size:11.5px;
+    color:var(--ink-soft);
+    flex-shrink:0;
+    background:var(--surface);
+    border-top:1px solid var(--border);
+  }
+  footer strong{ color:var(--wx-green-dark); }
+
+  @media (max-width: 640px){
+    header.masthead{ padding:10px 14px; }
+    .masthead-title p{ display:none; }
+    .search-wrap{ order:3; max-width:none; flex-basis:100%; }
+    .score-box{ padding:7px 14px; min-width:110px; }
+    .score-box .num{ font-size:24px; }
+    main{ padding:14px; }
+    .aisle{ width:190px; }
+  }
+
+  @media (prefers-reduced-motion: reduce){
+    .aisle, .category-card, .new-lane, .score-box .num{ transition:none; }
+  }
+</style>
+</head>
+<body>
+
+<header class="masthead">
+  <div class="logo">
+    <svg width="30" height="30" viewBox="0 0 34 34" role="img" aria-label="Woolworths leaf mark">
+      <circle cx="17" cy="17" r="17" fill="#129C4F"/>
+      <path d="M17 6c4 3 6.5 7 6.5 11.2 0 4-2.6 7.3-6.5 8.8-3.9-1.5-6.5-4.8-6.5-8.8C10.5 13 13 9 17 6z" fill="#AAD84A"/>
+      <path d="M17 9.4v16.6" stroke="#004C27" stroke-width="1.3" stroke-linecap="round"/>
+    </svg>
+    <span class="logo-word">woolworths<small>DARK STORE ANALYTICS</small></span>
+  </div>
+  <div class="masthead-title">
+    <h1>Dark Store Floor Planner</h1>
+    <p>Drag categories to group them into aisles</p>
+  </div>
+
+  <div class="search-wrap">
+    <label for="productSearch">Find a product</label>
+    <input type="text" id="productSearch" placeholder="e.g. Barilla Spaghetti 500g" autocomplete="off">
+    <div id="searchResult" aria-live="polite"></div>
+  </div>
+
+  <div class="score-box">
+    <div class="num" id="scoreNum">—</div>
+    <div class="lbl">TOGETHERNESS SCORE</div>
+  </div>
+</header>
+
+<div class="instructions">
+  <strong>How this works:</strong> drag a category card into another aisle, or onto "Open new aisle" to give it its own lane. Every product in a category is listed inside its card. Each category also has a keyboard-friendly <em>Move to</em> menu. Empty aisles close automatically.
+</div>
+
+<main>
+  <div id="floor" role="list" aria-label="Aisles"></div>
+</main>
+
+<footer>
+  <strong>Togetherness score</strong> = every pair of categories sharing an aisle is scored by how strongly their spend correlates (Pearson r, from the correlation matrix). The scores are averaged and rescaled from the −1…+1 range onto 0–100, so 50 is neutral, 100 is perfect co-purchase, 0 is strongly opposed. An aisle with only one category contributes no pairs.
+</footer>
+
+<script>
+const DATA = {"categories":["A.Milk","B.Bread","C.Eggs","D.Pasta","E.Pasta Sauce","F.Nachos","G.Salsa","H.Diapers","I.Wet wipes","J.Chocolates"],"categoryDisplay":{"A.Milk":"Milk","B.Bread":"Bread","C.Eggs":"Eggs","D.Pasta":"Pasta","E.Pasta Sauce":"Pasta Sauce","F.Nachos":"Nachos","G.Salsa":"Salsa","H.Diapers":"Diapers","I.Wet wipes":"Wet wipes","J.Chocolates":"Chocolates"},"correlation":[[1.0,0.7574,0.7891,0.0192,-0.0244,-0.0849,0.0272,0.0977,-0.0269,-0.0709],[0.7574,1.0,0.6087,0.1459,0.1001,-0.1031,-0.1723,0.0241,-0.071,0.1025],[0.7891,0.6087,1.0,-0.0208,0.0254,-0.2085,0.0434,0.067,-0.0682,-0.1193],[0.0192,0.1459,-0.0208,1.0,0.9553,0.1952,0.2268,-0.1508,-0.1542,-0.0899],[-0.0244,0.1001,0.0254,0.9553,1.0,0.108,0.1547,-0.1805,-0.1975,-0.1368],[-0.0849,-0.1031,-0.2085,0.1952,0.108,1.0,0.4782,0.1602,0.2172,0.1724],[0.0272,-0.1723,0.0434,0.2268,0.1547,0.4782,1.0,-0.0621,-0.1202,-0.1915],[0.0977,0.0241,0.067,-0.1508,-0.1805,0.1602,-0.0621,1.0,0.7022,0.5801],[-0.0269,-0.071,-0.0682,-0.1542,-0.1975,0.2172,-0.1202,0.7022,1.0,0.7811],[-0.0709,0.1025,-0.1193,-0.0899,-0.1368,0.1724,-0.1915,0.5801,0.7811,1.0]],"categoryStats":{"A.Milk":{"display":"Milk","totalSpend":13035.0,"totalQty":2950,"customerReach":100,"customerReachPct":100.0,"products":[{"name":"A2 Full Cream Milk 2L","unitPrice":5.6},{"name":"Dairy Farmers Lite Milk 2L","unitPrice":3.9},{"name":"Pauls Full Cream Milk 2L","unitPrice":3.9}]},"B.Bread":{"display":"Bread","totalSpend":13655.7,"totalQty":3083,"customerReach":100,"customerReachPct":100.0,"products":[{"name":"Abbott's Village Bakery Farmhouse Wholemeal 800g","unitPrice":4.7},{"name":"Helga's Wholemeal 750g","unitPrice":4.7},{"name":"Wonder White Sandwich 700g","unitPrice":3.9}]},"C.Eggs":{"display":"Eggs","totalSpend":11890.0,"totalQty":2288,"customerReach":99,"customerReachPct":99.0,"products":[{"name":"Pace Farm Free Range Eggs 12 pack 600g","unitPrice":5},{"name":"Woolworths Free Range Eggs 12 pack 700g","unitPrice":5.4}]},"D.Pasta":{"display":"Pasta","totalSpend":7672.5,"totalQty":1830,"customerReach":100,"customerReachPct":100.0,"products":[{"name":"Barilla Spaghetti 500g","unitPrice":3},{"name":"Latina Fresh Beef Ravioli 625g","unitPrice":8.5},{"name":"San Remo Penne 500g","unitPrice":2.5}]},"E.Pasta Sauce":{"display":"Pasta Sauce","totalSpend":6451.1,"totalQty":1588,"customerReach":100,"customerReachPct":100.0,"products":[{"name":"Barilla Basilico Pasta Sauce 400g","unitPrice":4.5},{"name":"Dolmio Pasta Sauce Classic Tomato 500g","unitPrice":3.7},{"name":"Leggo's Bolognese Pasta Sauce 500g","unitPrice":4}]},"F.Nachos":{"display":"Nachos","totalSpend":5750.4,"totalQty":1198,"customerReach":96,"customerReachPct":96.0,"products":[{"name":"CC's Corn Chips Tasty Cheese 175g","unitPrice":4.8},{"name":"Doritos Corn Chips Cheese Supreme 170g","unitPrice":4.8}]},"G.Salsa":{"display":"Salsa","totalSpend":4213.0,"totalQty":992,"customerReach":96,"customerReachPct":96.0,"products":[{"name":"Old El Paso Thick N Chunky Salsa Mild 300g","unitPrice":4.5},{"name":"Tostitos Salsa Medium 300g","unitPrice":4}]},"H.Diapers":{"display":"Diapers","totalSpend":23625.0,"totalQty":1125,"customerReach":98,"customerReachPct":98.0,"products":[{"name":"BabyLove Cosifit Nappies Size 3 54 pack","unitPrice":21},{"name":"Huggies Ultra Dry Nappy Pants Size 4 29 pack","unitPrice":21}]},"I.Wet wipes":{"display":"Wet wipes","totalSpend":19217.5,"totalQty":4045,"customerReach":100,"customerReachPct":100.0,"products":[{"name":"Curash Baby Wipes 80 pack","unitPrice":4.5},{"name":"Huggies Baby Wipes Fragrance Free 80 pack","unitPrice":5}]},"J.Chocolates":{"display":"Chocolates","totalSpend":11614.1,"totalQty":1621,"customerReach":100,"customerReachPct":100.0,"products":[{"name":"Cadbury Dairy Milk Chocolate Block 180g","unitPrice":5.5},{"name":"Lindt Excellence 70% Cocoa Dark Chocolate 100g","unitPrice":4.8},{"name":"Maltesers Box 400g","unitPrice":12}]}},"meta":{"numCustomers":100,"numOrders":1995,"numLineItems":8902,"numProducts":25,"totalSpend":117124.3},"seedAisles":[[0,1,2],[3,4],[5,6],[7,8,9]]};
+
+const cats = DATA.categories;          // e.g. "A.Milk"
+const disp = DATA.categoryDisplay;     // "A.Milk" -> "Milk"
+const corr = DATA.correlation;         // matrix aligned to cats index
+const catStats = DATA.categoryStats;
+const seedAisles = DATA.seedAisles;    // array of index-arrays
+
+// ---- state: aisles = array of arrays of category-index ----
+let aisles = seedAisles.map(a => a.slice());
+let aisleIdCounter = 0;
+let aisleIds = aisles.map(()=> 'aisle-' + (aisleIdCounter++));
+
+const floor = document.getElementById('floor');
+const scoreNum = document.getElementById('scoreNum');
+
+// ---------- togetherness score ----------
+function computeScore(){
+  let sum = 0, count = 0;
+  aisles.forEach(aisle=>{
+    for (let i=0;i<aisle.length;i++){
+      for (let j=i+1;j<aisle.length;j++){
+        sum += corr[aisle[i]][aisle[j]];
+        count++;
+      }
+    }
+  });
+  if (count === 0) return 100;
+  const avg = sum / count;
+  return Math.round(((avg + 1) / 2) * 100);
+}
+
+function updateScore(){
+  const s = computeScore();
+  scoreNum.textContent = s;
+  let color = '#F2C6BE';
+  if (s >= 65) color = '#AAD84A';
+  else if (s >= 45) color = '#E8A33D';
+  else color = '#F2938A';
+  scoreNum.style.color = color;
+  scoreNum.setAttribute('aria-label', 'Togetherness score ' + s + ' out of 100');
+}
+
+// ---------- render ----------
+function catName(idx){ return disp[cats[idx]]; }
+
+function render(){
+  const activeEl = document.activeElement;
+  const activeCatIdx = activeEl && activeEl.dataset ? activeEl.dataset.catIdx : null;
+
+  floor.innerHTML = '';
+
+  aisles.forEach((aisle, aisleIdx)=>{
+    const laneEl = document.createElement('div');
+    laneEl.className = 'aisle';
+    laneEl.dataset.aisleIdx = aisleIdx;
+    laneEl.setAttribute('role','listitem');
+    laneEl.setAttribute('aria-label', 'Aisle ' + (aisleIdx+1) + ': ' + aisle.map(catName).join(', '));
+
+    const head = document.createElement('div');
+    head.className = 'aisle-head';
+    head.innerHTML = `<h2>Aisle ${aisleIdx+1}</h2><span class="count">${aisle.length} categor${aisle.length===1?'y':'ies'}</span>`;
+    laneEl.appendChild(head);
+
+    aisle.forEach(catIdx=>{
+      laneEl.appendChild(buildCategoryCard(catIdx, aisleIdx));
+    });
+
+    laneEl.addEventListener('dragover', e=>{
+      e.preventDefault();
+      laneEl.classList.add('dragover');
+    });
+    laneEl.addEventListener('dragleave', ()=> laneEl.classList.remove('dragover'));
+    laneEl.addEventListener('drop', e=>{
+      e.preventDefault();
+      laneEl.classList.remove('dragover');
+      const catIdx = parseInt(e.dataTransfer.getData('text/plain'), 10);
+      moveCategory(catIdx, aisleIdx);
+    });
+
+    floor.appendChild(laneEl);
+  });
+
+  // new-lane dropzone
+  const newLane = document.createElement('div');
+  newLane.className = 'new-lane';
+  newLane.textContent = '+ Open new aisle';
+  newLane.setAttribute('role','listitem');
+  newLane.addEventListener('dragover', e=>{ e.preventDefault(); newLane.classList.add('dragover'); });
+  newLane.addEventListener('dragleave', ()=> newLane.classList.remove('dragover'));
+  newLane.addEventListener('drop', e=>{
+    e.preventDefault();
+    newLane.classList.remove('dragover');
+    const catIdx = parseInt(e.dataTransfer.getData('text/plain'), 10);
+    moveCategory(catIdx, 'new');
+  });
+  floor.appendChild(newLane);
+
+  updateScore();
+
+  // restore focus roughly
+  if (activeCatIdx !== null && activeCatIdx !== undefined){
+    const el = floor.querySelector(`[data-cat-idx="${activeCatIdx}"] .move-select`);
+    if (el) el.focus({preventScroll:true});
+  }
+}
+
+function buildCategoryCard(catIdx, aisleIdx){
+  const catKey = cats[catIdx];
+  const stat = catStats[catKey];
+  const card = document.createElement('div');
+  card.className = 'category-card';
+  card.draggable = true;
+  card.dataset.catIdx = catIdx;
+  card.tabIndex = 0;
+  card.setAttribute('role','group');
+  card.setAttribute('aria-label', catName(catIdx) + ' category, ' + stat.products.length + ' products, in aisle ' + (aisleIdx+1));
+
+  const catHead = document.createElement('div');
+  catHead.className = 'cat-head';
+
+  const h3 = document.createElement('h3');
+  h3.innerHTML = `<span class="drag-handle">⠿</span> ${catName(catIdx)}`;
+  catHead.appendChild(h3);
+
+  const select = document.createElement('select');
+  select.className = 'move-select';
+  select.setAttribute('aria-label', 'Move ' + catName(catIdx) + ' to aisle');
+  select.dataset.catIdx = catIdx;
+
+  aisles.forEach((a, i)=>{
+    const opt = document.createElement('option');
+    opt.value = i;
+    opt.textContent = 'Aisle ' + (i+1);
+    if (i === aisleIdx) opt.selected = true;
+    select.appendChild(opt);
+  });
+  const optNew = document.createElement('option');
+  optNew.value = 'new';
+  optNew.textContent = 'New aisle';
+  select.appendChild(optNew);
+
+  select.addEventListener('change', ()=>{
+    const val = select.value === 'new' ? 'new' : parseInt(select.value,10);
+    moveCategory(catIdx, val);
+  });
+  select.addEventListener('click', e=> e.stopPropagation());
+
+  catHead.appendChild(select);
+  card.appendChild(catHead);
+
+  const ul = document.createElement('ul');
+  ul.className = 'product-list';
+  stat.products.forEach(p=>{
+    const li = document.createElement('li');
+    li.className = 'product-tile';
+    li.dataset.productName = p.name.toLowerCase();
+    li.innerHTML = `<span class="pname">${p.name}</span><span class="price">$${p.unitPrice.toFixed(2)}</span>`;
+    ul.appendChild(li);
+  });
+  card.appendChild(ul);
+
+  const catstat = document.createElement('div');
+  catstat.className = 'cat-stat';
+  catstat.textContent = `${stat.customerReachPct}% of customers buy this · $${stat.totalSpend.toLocaleString(undefined,{maximumFractionDigits:0})} total`;
+  card.appendChild(catstat);
+
+  // drag events
+  card.addEventListener('dragstart', e=>{
+    e.dataTransfer.setData('text/plain', String(catIdx));
+    e.dataTransfer.effectAllowed = 'move';
+    setTimeout(()=> card.classList.add('dragging'), 0);
+  });
+  card.addEventListener('dragend', ()=> card.classList.remove('dragging'));
+
+  return card;
+}
+
+function moveCategory(catIdx, target){
+  // remove from current aisle
+  let fromAisle = -1;
+  aisles.forEach((a, i)=>{
+    const pos = a.indexOf(catIdx);
+    if (pos !== -1){ a.splice(pos,1); fromAisle = i; }
+  });
+
+  if (target === 'new'){
+    aisles.push([catIdx]);
+  } else {
+    // target is an aisle index; clamp in case aisles shifted due to removal of empties
+    aisles[target].push(catIdx);
+  }
+
+  // drop empty aisles
+  aisles = aisles.filter(a => a.length > 0);
+
+  render();
+}
+
+// ---------- search ----------
+const searchInput = document.getElementById('productSearch');
+const searchResult = document.getElementById('searchResult');
+
+function findAisleOfCat(catIdx){
+  for (let i=0;i<aisles.length;i++){
+    if (aisles[i].includes(catIdx)) return i;
+  }
+  return -1;
+}
+
+searchInput.addEventListener('input', ()=>{
+  const q = searchInput.value.trim().toLowerCase();
+  document.querySelectorAll('.product-tile.hit').forEach(el=> el.classList.remove('hit'));
+  document.querySelectorAll('.category-card.hit-parent').forEach(el=> el.classList.remove('hit-parent'));
+
+  if (!q){ searchResult.textContent = ''; return; }
+
+  const tiles = Array.from(document.querySelectorAll('.product-tile'));
+  const match = tiles.find(t => t.dataset.productName.includes(q));
+
+  if (!match){
+    searchResult.innerHTML = '<span class="miss">No product matches "' + escapeHtml(searchInput.value) + '"</span>';
+    return;
+  }
+
+  match.classList.add('hit');
+  const card = match.closest('.category-card');
+  card.classList.add('hit-parent');
+  const catIdx = parseInt(card.dataset.catIdx, 10);
+  const aisleIdx = findAisleOfCat(catIdx);
+  match.scrollIntoView({block:'nearest', inline:'nearest', behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth'});
+  searchResult.textContent = `Found in ${catName(catIdx)} — Aisle ${aisleIdx+1}`;
+});
+
+function escapeHtml(s){
+  const d = document.createElement('div');
+  d.textContent = s;
+  return d.innerHTML;
+}
+
+render();
+</script>
+
+</body>
+</html>
